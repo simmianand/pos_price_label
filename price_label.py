@@ -13,107 +13,135 @@ from trytond.transaction import Transaction
 from trytond.pool import Pool
 
 
+__all__ = [
+    'Job', 'JobEntry', 'LabelReport', 'Label', 'ChooseFirstLabel',
+    'PrintLabel', 'PrintJobSelect', 'AddProductToJob'
+]
+
+
 class Job(ModelSQL, ModelView):
-    _name = 'pos_price_label.job'
+    'Job'
+    __name__ = 'pos_price_label.job'
 
     name = fields.Char('Name', size=None, required=True, select=1)
     products = fields.Many2Many('pos_price_label.job-entry-rel', 'job',
             'product', 'Products')
     finished = fields.Boolean('Finished')
 
-    def __init__(self):
-        super(Job, self).__init__()
-        self._order += [('create_date', 'DESC')]
+    @classmethod
+    def __setup__(cls):
+        super(Job, cls).__setup__()
+        cls._order += [('create_date', 'DESC')]
 
-    def default_user(self):
+    @staticmethod
+    def default_user():
+        """
+        Returns the default user
+        """
         return Transaction().user
 
-    def search(self, domain, offset=0, limit=None, order=None, count=False):
+    @classmethod
+    def search(cls, domain, offset=0, limit=None, order=None, count=False):
+        """
+        Returns list of records that match the domain
+        """
         Transaction().set_context(active_test=False)
-        return super(Job, self).search(domain, offset, limit, order, count)
-
-Job()
+        return super(Job, cls).search(domain, offset, limit, order, count)
 
 
 class JobEntry(ModelSQL, ModelView):
-    _name = 'pos_price_label.job-entry-rel'
+    'Job Entry'
+    __name__ = 'pos_price_label.job-entry-rel'
 
     job = fields.Many2One('pos_price_label.job', 'Job')
     product = fields.Many2One('product.product', 'Product')
 
-    def search(self, domain, offset=0, limit=None, order=None, count=False):
+    @classmethod
+    def search(cls, domain, offset=0, limit=None, order=None, count=False):
+        """
+        Returns list of records that match the domain
+        """
         Transaction().set_context(active_test=False)
-        return super(JobEntry, self).search(domain, offset, limit, order, count)
-
-JobEntry()
+        return super(JobEntry, cls).search(domain, offset, limit, order, count)
 
 
 class LabelReport(Report):
-    _name = 'pos_price_label.label_report'
+    'Label Report'
+    __name__ = 'pos_price_label.label_report'
     _size = pagesizes.A4
     _dimension = (3, 9)
     _h_space = 2.0 * units.mm
     _v_space = 0.0
 
+    @classmethod
+    def execute(cls, ids, datas):
+        """
+        Execute the report on record ids.
 
-    def execute(self, ids, datas):
-        pool = Pool()
-        job_obj = pool.get('pos_price_label.job')
-        self._data = job_obj.browse(ids[0]).products
-        self._canvas = canvas.Canvas("temp_file.pdf", pagesize=self._size)
-        self._h_margin = (self._size[0]
-              - self._dimension[0]*Label._size[0]
-              - self._h_space*(self._dimension[0]-1)) / 2.0
+        It returns a tuple with:
+            report type,
+            data,
+            a boolean to direct print,
+            the report name
 
-        self._v_margin = (self._size[1]
-              - self._dimension[1]*Label._size[1]
-              - self._v_space*(self._dimension[1]-1)) / 2.0
+        """
+        Job = Pool().get('pos_price_label.job')
+
+        cls._data = Job(ids[0]).products
+        cls._canvas = canvas.Canvas("temp_file.pdf", pagesize=cls._size)
+        cls._h_margin = (cls._size[0]
+              - cls._dimension[0]*Label._size[0]
+              - cls._h_space*(cls._dimension[0]-1)) / 2.0
+
+        cls._v_margin = (cls._size[1]
+              - cls._dimension[1]*Label._size[1]
+              - cls._v_space*(cls._dimension[1]-1)) / 2.0
         # HACK
-        self._v_margin += 1*units.mm
+        cls._v_margin += 1*units.mm
 
-        self.draw(int(datas['form']['x_start']),
+        cls.draw(int(datas['form']['x_start']),
                 int(datas['form']['y_start']))
-        data = base64.encodestring(self._canvas.getpdfdata())
+        data = base64.encodestring(cls._canvas.getpdfdata())
         return (u'pdf', data, False, u'Label')
 
-    def draw(self, first_x=1, first_y=1):
+    @classmethod
+    def draw(cls, first_x=1, first_y=1):
         first_x -= 1
         first_y -= 1
         x_start = 0
         y_start = 0
         index = 0
 
-        while index < len(self._data):
+        while index < len(cls._data):
             # top left
-            self._canvas.translate(0, self._size[1])
+            cls._canvas.translate(0, cls._size[1])
             # margins
-            self._canvas.translate(self._h_margin, -self._v_margin)
+            cls._canvas.translate(cls._h_margin, -cls._v_margin)
 
-            for y in range(y_start, self._dimension[1]):
-                self._canvas.translate(0, -1.0 * Label._size[1])
-                if(index >= len(self._data)): break
+            for y in range(y_start, cls._dimension[1]):
+                cls._canvas.translate(0, -1.0 * Label._size[1])
+                if(index >= len(cls._data)): break
 
-                self._canvas.saveState()
-                for x in range(x_start, self._dimension[0]):
-                    if(index >= len(self._data)): break
+                cls._canvas.saveState()
+                for x in range(x_start, cls._dimension[0]):
+                    if(index >= len(cls._data)): break
 
                     if(x >= first_x and y >= first_y):
-                        self._canvas.saveState()
-                        l = Label(self._data[index])
-                        l.draw(self._canvas)
-                        self._canvas.restoreState()
+                        cls._canvas.saveState()
+                        l = Label(cls._data[index])
+                        l.draw(cls._canvas)
+                        cls._canvas.restoreState()
                         index += 1
                         first_x = 0
                         first_y = 0
 
-                    self._canvas.translate(Label._size[0] + self._h_space, 0)
+                    cls._canvas.translate(Label._size[0] + cls._h_space, 0)
 
-                self._canvas.restoreState()
-                self._canvas.translate(0, -1.0 * self._v_space)
+                cls._canvas.restoreState()
+                cls._canvas.translate(0, -1.0 * cls._v_space)
 
-            self._canvas.showPage()
+            cls._canvas.showPage()
 
-LabelReport()
 
 class Label(object):
     _size = (63.5*units.mm, 29.6*units.mm)
@@ -127,27 +155,29 @@ class Label(object):
     }
     _max_chars = 13
 
-    def __init__(self, data):
-        self._data = data
+    @classmethod
+    def __setup__(cls, data):
+        cls._data = data
 
-    def draw(self, canvas):
+    @classmethod
+    def draw(cls, canvas):
         # canvas.rect(0, 0, self._size[0], self._size[1])
         # HACK
         canvas.translate(3, -2)
         canvas.setFont("Helvetica-Bold", 20)
-        canvas.drawString(5, 62, unicode('%.2f' % self._data.list_price)
+        canvas.drawString(5, 62, unicode('%.2f' % cls._data.list_price)
                 + u'\u20AC')
         canvas.setFont("Helvetica-Bold", 10)
-        canvas.drawString(5, 50, self._data.name)
+        canvas.drawString(5, 50, cls._data.name)
         canvas.setFont("Helvetica", 10)
-        canvas.drawString(5, 40, '' if self._data.description is None
-                else self._data.description)
-        if not self._data.active:
-            canvas.line(5, 35, self._size[0]-10, self._size[1]-10)
-            canvas.line(self._size[0]-10, 35, 5, self._size[1]-10)
+        canvas.drawString(5, 40, '' if cls._data.description is None
+                else cls._data.description)
+        if not cls._data.active:
+            canvas.line(5, 35, cls._size[0]-10, cls._size[1]-10)
+            canvas.line(cls._size[0]-10, 35, 5, cls._size[1]-10)
 
-        code = self._data.code
-        code = code[:self._max_chars]
+        code = cls._data.code
+        code = code[:cls._max_chars]
         # code = (self._max_chars - len(code)) * '0' + code
         bc = code128.Code128(code,
                     humanReadable=0)
@@ -160,24 +190,31 @@ class Label(object):
 
 
 class ChooseFirstLabel(ModelView):
-    _name = 'pos_price_label.choose_first_label'
-    _description = 'Select first label to print on.'
+    __name__ = 'pos_price_label.choose_first_label'
 
     x_start = fields.Selection([(str(x), str(x)) for x in range(1, 4)],
             'First X', required=True)
     y_start = fields.Selection([(str(x), str(x)) for x in range(1, 10)],
             'First Y', required=True)
 
-    def default_x_start(self):
+    @staticmethod
+    def default_x_start():
+        """
+        Returns default for x_start
+        """
         return '1'
 
-    def default_y_start(self):
+    @staticmethod
+    def default_y_start():
+        """
+        Returns default for x_start
+        """
         return '1'
 
-ChooseFirstLabel()
 
 class PrintLabel(Wizard):
-    _name = 'pos_price_label.print_labels'
+    'Print Label'
+    __name__ = 'pos_price_label.print_labels'
 
     states = {
         'init': {
@@ -200,34 +237,41 @@ class PrintLabel(Wizard):
     }
 
     def _action_print_labels(self, data):
-        pool = Pool()
-        model_data_obj = pool.get('ir.model.data')
-        act_report_id = model_data_obj.get_id('pos_price_label',
-                'report_print_labels')
-        report_obj = pool.get('ir.action.report')
-        res = report_obj.read(act_report_id)
-        return res
+        """
+        Action foir print labels
+        """
+        ModelData = Pool().get('ir.model.data')
+        ActionReport = Pool().get('ir.action.report')
 
-PrintLabel()
+        act_report_id = ModelData.get_id('pos_price_label',
+                'report_print_labels')
+        res = ActionReport.read(act_report_id)
+        return res
 
 
 class PrintJobSelect(ModelView):
-    _name = 'pos_price_label.print_job_select'
-    _description = 'Select printjob.'
+    'Print Job Select'
+    __name__ = 'pos_price_label.print_job_select'
+
     printjob = fields.Many2One('pos_price_label.job', 'Printjob')
 
-    def default_printjob(self):
-        printjob_obj = Pool().get('pos_price_label.job')
-        lastjob = printjob_obj.search([], limit=1, order=[
+    @staticmethod
+    def default_printjob():
+        """
+        Returns default for printjob
+        """
+        Job = Pool().get('pos_price_label.job')
+
+        lastjob = Job.search([], limit=1, order=[
                 ('create_date', 'DESC')])
-        if(len(lastjob) > 0): return lastjob[0]
+        if(len(lastjob) > 0):
+            return lastjob[0]
         return False
 
-PrintJobSelect()
 
 class AddProductToJob(Wizard):
     'Add product to printjob'
-    _name = 'pos_price_label.add_to_printjob'
+    __name__ = 'pos_price_label.add_to_printjob'
 
     states = {
         'init': {
@@ -251,19 +295,20 @@ class AddProductToJob(Wizard):
 
 
     def _action_add_product(self, data):
-        pool = Pool()
-        job_obj = pool.get('pos_price_label.job')
-        pj = job_obj.browse(data['form']['printjob'])
-        pje_obj = pool.get('pos_price_label.job-entry-rel')
+        """
+        Action for adding product
+        """
+        Job = Pool().get('pos_price_label.job')
+        JobEntry = Pool().get('pos_price_label.job-entry-rel')
 
-        pj_ids = pje_obj.search([
+        pj = Job.browse(data['form']['printjob'])
+        pj_ids = JobEntry.search([
                 ('product', 'in', data['ids']),
                 ('job', '=', pj.id)
             ])
         ids = set(data['ids']) - set(pj_ids)
         for id in ids:
-            pje_obj.create({'job': pj.id, 'product': id})
-
-
-
-AddProductToJob()
+            JobEntry.create({
+                'job': pj.id,
+                'product': id
+            })
