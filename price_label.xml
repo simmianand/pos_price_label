@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<tryton>
+    <data>
+       <!-- Printjobs -->
+        <record model="ir.ui.view" id="printing_jobs_tree">
+            <field name="model">pos_price_label.job</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <![CDATA[
+                    <tree string="Printing Jobs">
+                        <field name="create_date"/>
+                        <field name="create_user"/>
+                        <field name="name"/>
+                        <field name="products"/>
+                    </tree>
+                    ]]>
+            </field>
+        </record>
+
+        <record model="ir.action.act_window" id="act_printing_jobs_tree">
+            <field name="name">Jobs</field>
+            <field name="res_model">pos_price_label.job</field>
+        </record>
+
+        <record model="ir.action.act_window.view" id="act_printing_jobs_view_tree">
+            <field name="sequence" eval="10"/>
+            <field name="view" ref="printing_jobs_tree"/>
+            <field name="act_window" ref="act_printing_jobs_tree"/>
+        </record>
+
+        <record model="ir.ui.view" id="printing_jobs_form">
+            <field name="model">pos_price_label.job</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <![CDATA[
+                    <form string="Print Jobs">
+                        <group id="description">
+                            <label name="name"/>
+                            <field name="name"/>
+                        </group>
+                        <newline/>
+                        <field name="products"/>
+                    </form>
+                    ]]>
+            </field>
+        </record>
+
+        <record model="ir.action.act_window.view" id="act_printing_jobs_view_form_edit">
+            <field name="sequence" eval="10"/>
+            <field name="view" ref="printing_jobs_form"/>
+            <field name="act_window" ref="act_printing_jobs_tree"/>
+        </record>
+
+        <record model="ir.action.act_window" id="act_printing_jobs_form">
+            <field name="name">Jobs</field>
+            <field name="res_model">pos_price_label.job</field>
+        </record>
+
+        <record model="ir.action.act_window.view" id="act_printing_jobs_view_form">
+            <field name="sequence" eval="10"/>
+            <field name="view" ref="printing_jobs_form"/>
+            <field name="act_window" ref="act_printing_jobs_form"/>
+        </record>
+
+        <menuitem parent="product.menu_main_product" id="menu_main_printing_jobs" name="Printjobs"
+            icon="tryton-open" sequence="11"/>
+
+        <menuitem parent="menu_main_printing_jobs" id="menu_main_printing_jobs_tree" name="Printjobs"
+            icon="tryton-list" sequence="11" action="act_printing_jobs_tree"/>
+
+        <menuitem parent="menu_main_printing_jobs" id="menu_main_printing_jobs_new" name="new printjob"
+            icon="tryton-new" sequence="11" action="act_printing_jobs_form"/>
+
+        <record model="ir.action.report" id="report_print_labels">
+            <field name="name">Label</field>
+            <field name="model">pos_price_label.job</field>
+            <field name="report_name">pos_price_label.label_report</field>
+            <field name="report"></field>
+        </record>
+
+        <record model="ir.action.wizard" id="wizard_print_labels">
+            <field name="name">Print label</field>
+            <field name="wiz_name">pos_price_label.print_labels</field>
+        </record>
+        <record model="ir.action.keyword" id="act_report_printing_labels">
+            <field name="keyword">form_print</field>
+            <field name="model">pos_price_label.job,0</field>
+            <field name="action" ref="wizard_print_labels"/>
+        </record>
+
+        <!-- Add product to printjob-->
+        <record model="ir.action.wizard" id="wizard_add_to_printjob">
+            <field name="name">Add to printjob</field>
+            <field name="wiz_name">pos_price_label.add_to_printjob</field>
+        </record>
+        <record model="ir.action.keyword" id="act_wizard_add_to_printjob">
+            <field name="keyword">form_action</field>
+            <field name="model">product.product,0</field>
+            <field name="action" ref="wizard_add_to_printjob"/>
+        </record>
+
+    </data>
+</tryton>
